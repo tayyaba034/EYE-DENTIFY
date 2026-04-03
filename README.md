@@ -1,10 +1,10 @@
-#EYE-DENTIFY
+# EYE-DENTIFY
 
 > **Smart AI-Based Surveillance System** — Real-time person identification through a multi-stage AI pipeline, cross-platform mobile client, and live admin dashboard.
 
 ---
 
-##Overview
+## Overview
 
 EYE-DENTIFY is an end-to-end intelligent surveillance platform that detects and identifies a specific individual in a live camera feed using a fusion of facial recognition, clothing analysis, and height estimation. Alerts are stored in Supabase and surfaced through both a web dashboard and a Flutter mobile app.
 
