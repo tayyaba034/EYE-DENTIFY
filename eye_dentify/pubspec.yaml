@@ -1,0 +1,59 @@
+name: eye_dentify
+description: A complete Flutter mobile application for the EYE-DENTIFY smart surveillance system for missing person detection.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+
+  # HTTP & Networking
+  dio: ^5.3.3
+  web_socket_channel: ^2.4.0
+  http_parser: ^4.0.2
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.1.0
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+
+  # Location & Maps
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  google_maps_flutter: ^2.12.0
+
+  # Media & Files
+  image_picker: ^1.0.4
+
+  # UI & Fonts
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  flutter_staggered_animations: ^1.0.0
+  cupertino_icons: ^1.0.5
+
+  # Utilities
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.2
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/cropped_circle_image.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
