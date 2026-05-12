@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel Command Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-mark">SC</div>
+        <div>
+          <p class="eyebrow">Surveillance Admin</p>
+          <h1>Sentinel Command</h1>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active">Overview</button>
+        <button class="nav-item">Incidents</button>
+        <button class="nav-item">Assets</button>
+        <button class="nav-item">Audit</button>
+      </nav>
+
+      <section class="rail-card rail-highlight">
+        <p class="label">Pipeline posture</p>
+        <div class="score-wrap">
+          <span id="system-score">--</span>
+          <small>reliability index</small>
+        </div>
+        <div class="mini-stats">
+          <div>
+            <span class="mini-label">Detections</span>
+            <strong id="detection-count">0</strong>
+          </div>
+          <div>
+            <span class="mini-label">Confirmed</span>
+            <strong id="track-count">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="rail-card">
+        <p class="label">Feed status</p>
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <span id="feed-status">Awaiting pipeline output</span>
+        </div>
+        <p class="muted" id="last-updated">No frame received yet</p>
+      </section>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Control room</p>
+          <h2>Admin Monitoring Console</h2>
+        </div>
+        <div class="topbar-meta">
+          <div class="search-pill">Live surveillance operations</div>
+          <div class="topbar-clock" id="last-updated-inline">Streaming</div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy-wrap">
+          <p class="hero-kicker">Real-time oversight</p>
+          <p class="hero-copy">
+            Detection, tracking, fusion, temporal validation, and operator-facing alert review in one product-grade dashboard.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <div class="hero-chip accent">
+            <span class="chip-label">Critical alerts</span>
+            <strong id="alert-count">0</strong>
+          </div>
+          <div class="hero-chip">
+            <span class="chip-label">Validated</span>
+            <strong id="validated-count">0</strong>
+          </div>
+          <div class="hero-chip">
+            <span class="chip-label">Frame</span>
+            <strong id="frame-pill">Frame --</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel video-panel wide">
+          <div class="panel-head">
+            <div>
+              <p class="label">Live feed</p>
+              <h3>Processed video stream</h3>
+            </div>
+            <span class="pill">Live telemetry</span>
+          </div>
+          <div class="video-shell">
+            <img id="live-feed" alt="Live surveillance feed" />
+          </div>
+        </article>
+
+        <article class="panel spotlight">
+          <div class="panel-head">
+            <div>
+              <p class="label">Active watch</p>
+              <h3>Operational snapshot</h3>
+            </div>
+            <span class="pill">Insight panel</span>
+          </div>
+          <div class="snapshot-layout">
+            <div class="snapshot-stage">
+              <div class="stage-line"></div>
+              <div class="stage-list" id="stage-list"></div>
+            </div>
+            <div class="snapshot-explain">
+              <p class="label">Latest explanation</p>
+              <h4 id="latest-title">No active explanation</h4>
+              <p id="latest-explanation" class="muted">
+                Start the backend pipeline to populate live reasoning, confidence progression, and alert summaries.
+              </p>
+              <div class="signal-bars">
+                <div>
+                  <span>Face</span>
+                  <div class="bar"><i id="bar-face"></i></div>
+                </div>
+                <div>
+                  <span>Clothing</span>
+                  <div class="bar"><i id="bar-clothing"></i></div>
+                </div>
+                <div>
+                  <span>Temporal</span>
+                  <div class="bar"><i id="bar-temporal"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="label">Frame status</p>
+              <h3>Live module summary</h3>
+            </div>
+          </div>
+          <div id="status-list" class="stack empty-state">Waiting for live module state.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="label">Alert queue</p>
+              <h3>Decision output</h3>
+            </div>
+          </div>
+          <div id="alert-list" class="stack empty-state">No alert records yet.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="label">Signal fusion</p>
+              <h3>Identity confidence</h3>
+            </div>
+          </div>
+          <div id="fusion-list" class="stack empty-state">Fusion results will appear here.</div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-head">
+            <div>
+              <p class="label">Tracked entities</p>
+              <h3>Live entity register</h3>
+            </div>
+            <span class="pill subtle">Auto-refresh</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Track</th>
+                  <th>State</th>
+                  <th>Frames seen</th>
+                  <th>Face signal</th>
+                  <th>Clothing</th>
+                  <th>Height</th>
+                </tr>
+              </thead>
+              <tbody id="track-table">
+                <tr>
+                  <td colspan="6" class="muted center">No tracks yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-head">
+            <div>
+              <p class="label">Delivery log</p>
+              <h3>Output packaging</h3>
+            </div>
+          </div>
+          <div id="delivery-list" class="stack empty-state">No delivery payloads generated yet.</div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

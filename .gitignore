@@ -1,6 +1,19 @@
 # Ignore all root content by default, then explicitly allow selected module folders
 /*
 !/.gitignore
+!/.dockerignore
+!/Dockerfile.runpod
+!/RUNPOD_DEPLOYMENT.md
+!/api_security.py
+!/env_config.py
+!/face_node_factory.py
+!/project_paths.py
+!/requirements-deployment.txt
+!/run_surveillance_pipeline.py
+!/surveillance_backend_pipeline.py
+!/surveillance_live_service.py
+!/scripts/
+!/surveillance-dashboard-module/
 !/alert_decision_module/
 !/clothing_feature_extraction_module/
 !/explainability_module/
