@@ -138,4 +138,4 @@ FrameDetectionOutput  ──→  Stage 2: Multi-Object Tracking (DeepSORT/ByteTr
 | No persons detected | Returns `detections: []` — empty array |
 | Null / empty frame | Returns `detections: []` with a warning log |
 | Model load failure | Raises `RuntimeError` with clear message |
-| Flickering detection | Suppressed by TemporalSmoother until stable |
+| Flickering detection | Suppressed by TemporalSmoother until stable |updaed by amna
