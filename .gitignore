@@ -4,6 +4,7 @@
 !/.dockerignore
 !/Dockerfile.runpod
 !/RUNPOD_DEPLOYMENT.md
+!/README.md
 !/api_security.py
 !/env_config.py
 !/face_node_factory.py
