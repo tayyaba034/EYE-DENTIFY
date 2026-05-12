@@ -2,6 +2,7 @@
 /*
 !/.gitignore
 !/.dockerignore
+!/.mailmap
 !/Dockerfile.runpod
 !/RUNPOD_DEPLOYMENT.md
 !/api_security.py
