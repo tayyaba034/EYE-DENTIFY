@@ -1,0 +1,15 @@
+# Multi-Object Tracking Module — Dependencies
+# Surveillance Intelligence Pipeline — Stage 2
+
+# Numerical operations / frame handling
+numpy>=1.24.0
+
+# OpenCV (frame decoding, passed from pipeline orchestrator)
+opencv-python>=4.8.0
+
+# ── ByteTrack backend ─────────────────────────────────────────────────────────
+# ByteTrack is bundled inside ultralytics (used in Stage 1 as well)
+ultralytics>=8.0.0
+
+# ── DeepSORT backend (optional — only if TRACKER_BACKEND = "deepsort") ────────
+deep-sort-realtime>=1.3.2
