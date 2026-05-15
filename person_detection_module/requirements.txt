@@ -1,0 +1,11 @@
+# Person Detection Module — Dependencies
+# Surveillance Intelligence Pipeline — Stage 1
+
+# YOLOv8 inference engine
+ultralytics>=8.0.0
+
+# Numerical operations (frame handling, bbox math)
+numpy>=1.24.0
+
+# OpenCV for camera feed decoding (used by pipeline orchestrator)
+opencv-python>=4.8.0

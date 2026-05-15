@@ -1,0 +1,11 @@
+.cache/
+.npm-cache/
+node_modules/
+runtime/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.env
+.env.*
+height_estimation_module/venv310_new/

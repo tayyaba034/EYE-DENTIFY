@@ -1,0 +1,62 @@
+##############################################################################
+# docker-compose.gpu.yml
+#
+# GPU-accelerated multi-camera deployment for AWS g4dn / g5 instances.
+# Requires: nvidia-container-toolkit installed on the host.
+#
+# Usage:
+#   docker compose -f docker-compose.gpu.yml up -d
+#
+# Required env vars (set in .env):
+#   CAMERA_SOURCES   — e.g. "rtsp://cam1/stream,rtsp://cam2/stream"
+#
+# Optional env vars:
+#   FACE_MODE        — "recognition" (default, full InsightFace) | "none" | "edge"
+#   TRACKER_BACKEND  — "deepsort" (default, GPU appearance model) | "bytetrack"
+#   PRIORITY_FAILOVER— set to any non-empty value to enable failover mode
+#   MATCH_SIGNAL     — "track" | "face" | "alert"
+#   CONF_THRESHOLD   — detection confidence, default 0.5
+##############################################################################
+
+services:
+  multicam-pipeline-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    command: >
+      python multicam_live_service.py
+        --sources "${CAMERA_SOURCES:-0}"
+        --backend "${TRACKER_BACKEND:-deepsort}"
+        --conf "${CONF_THRESHOLD:-0.5}"
+        --face-mode "${FACE_MODE:-recognition}"
+        --host 0.0.0.0
+        --port 8000
+        ${PRIORITY_FAILOVER:+--priority-failover}
+        --match-signal "${MATCH_SIGNAL:-track}"
+    env_file:
+      - .env
+    environment:
+      API_AUTH_REQUIRED: "0"
+      ENABLE_REMOTE_ALERTS: "${ENABLE_REMOTE_ALERTS:-0}"
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+      # Tell InsightFace and ONNX Runtime to use GPU
+      CUDA_VISIBLE_DEVICES: "0"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./runtime:/app/runtime
+    restart: unless-stopped
+    # GPU access — requires nvidia-container-toolkit on host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s

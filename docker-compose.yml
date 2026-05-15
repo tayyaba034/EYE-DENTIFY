@@ -1,0 +1,16 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      API_AUTH_REQUIRED: "0"
+      ENABLE_REMOTE_ALERTS: "0"
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./runtime:/app/runtime
+    restart: unless-stopped

@@ -1,0 +1,14 @@
+{
+  "sir ejaz": {
+    "image_path": "D:\\FYP MODELS\\Edge\\Facial recognition\\facial recog\\data\\01-raw\\sir ejaz.jpg",
+    "bbox": [
+      150.0321502685547,
+      80.4515151977539,
+      376.27239990234375,
+      363.3920593261719
+    ],
+    "embedding_shape": [
+      512
+    ]
+  }
+}

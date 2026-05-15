@@ -1,0 +1,17 @@
+__pycache__/
+.pytest_cache/
+.venv/
+env/
+venv/
+height_estimation_module/venv310_new/
+runtime/
+runs/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.DS_Store
+.git/
+.gitignore
+.vscode/
+.env
+.env.*
