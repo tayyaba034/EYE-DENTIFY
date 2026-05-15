@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "D:\FYP MODELS\modules with skills\multi-object-tracking-module\run_tracking.py", line 37, in <module>
+    from person_detection_module.detector import PersonDetector
+  File "D:\FYP MODELS\modules with skills\person_detection_module\__init__.py", line 9, in <module>
+    from detector import PersonDetector                         # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\FYP MODELS\modules with skills\person_detection_module\detector.py", line 27, in <module>
+    from config import (
+    ...<8 lines>...
+    )
+ImportError: cannot import name 'MODEL_PATH' from 'config' (D:\FYP MODELS\modules with skills\multi-object-tracking-module\config.py)

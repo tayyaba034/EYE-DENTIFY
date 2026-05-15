@@ -1,0 +1,58 @@
+# Dockerfile.gpu
+# GPU-enabled image for AWS g4dn / g5 instances (NVIDIA T4 / A10G)
+# Base: CUDA 12.1 + cuDNN 8 on Ubuntu 22.04
+
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    KMP_DUPLICATE_LIB_OK=TRUE \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
+    ffmpeg \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgl1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# Install GPU-enabled Python dependencies
+# torch with CUDA 12.1 support
+RUN pip install --no-cache-dir \
+    torch==2.2.2+cu121 \
+    torchvision==0.17.2+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install onnxruntime-gpu (replaces cpu version)
+RUN pip install --no-cache-dir onnxruntime-gpu==1.17.3
+
+# Install remaining dependencies
+# Strip torch and onnxruntime lines (any version) — already installed above as GPU variants
+COPY requirements-deployment.txt ./
+RUN grep -viE "^torch[>=<! ]|^torch$|^onnxruntime[>=<! ]|^onnxruntime$" \
+    requirements-deployment.txt > requirements-gpu-filtered.txt \
+    && pip install --no-cache-dir -r requirements-gpu-filtered.txt
+
+COPY . .
+
+EXPOSE 8000
+
+# Default: multi-cam live service
+# Override CAMERA_SOURCES, FACE_MODE, TRACKER_BACKEND via environment
+CMD ["python", "multicam_live_service.py", \
+     "--sources", "0", \
+     "--face-mode", "recognition", \
+     "--backend", "deepsort", \
+     "--host", "0.0.0.0", \
+     "--port", "8000"]

@@ -1,0 +1,50 @@
+##############################################################################
+# docker-compose.multicam.yml
+#
+# Multi-camera demo deployment.
+# One instance, N camera sources (RTSP streams, video files, or webcam indices).
+#
+# Usage:
+#   docker compose -f docker-compose.multicam.yml up
+#
+# Environment variables (set in .env or override here):
+#   CAMERA_SOURCES   — comma-separated sources, e.g. "rtsp://cam1/stream,rtsp://cam2/stream"
+#   FACE_MODE        — "none" (CPU demo), "recognition" (full), "edge" (ESP32)
+#   TRACKER_BACKEND  — "bytetrack" (lighter) or "deepsort" (heavier)
+#   PRIORITY_FAILOVER— "true" to enable priority-failover mode, "false" for parallel
+#   MATCH_SIGNAL     — "track", "face", or "alert"
+#   CONF_THRESHOLD   — detection confidence, default 0.5
+##############################################################################
+
+services:
+  multicam-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      python multicam_live_service.py
+        --sources "${CAMERA_SOURCES:-0}"
+        --backend "${TRACKER_BACKEND:-bytetrack}"
+        --conf "${CONF_THRESHOLD:-0.5}"
+        --face-mode "${FACE_MODE:-none}"
+        --host 0.0.0.0
+        --port 8000
+        ${PRIORITY_FAILOVER:+--priority-failover}
+        --match-signal "${MATCH_SIGNAL:-track}"
+    env_file:
+      - .env
+    environment:
+      API_AUTH_REQUIRED: "0"
+      ENABLE_REMOTE_ALERTS: "${ENABLE_REMOTE_ALERTS:-0}"
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./runtime:/app/runtime
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
