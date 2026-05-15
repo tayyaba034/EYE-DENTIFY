@@ -33,9 +33,14 @@ class ClothingColorDetector:
             "Blue": (255, 0, 0),
             "Yellow": (0, 255, 255),
             "Orange": (0, 165, 255),
+            "Purple": (128, 0, 128),
+            "Pink": (203, 192, 255),
             "White": (255, 255, 255),
             "Black": (0, 0, 0),
-            "Grey": (128, 128, 128)
+            "Grey": (128, 128, 128),
+            "Cyan": (255, 255, 0),
+            "Maroon": (0, 0, 128),
+            "Navy": (128, 0, 0)
         }
 
         # -------- CONVERT TO LAB --------

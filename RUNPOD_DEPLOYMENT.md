@@ -35,6 +35,7 @@ Set these environment variables in the Pod:
 RUNPOD_SOURCE=/workspace/input/sample.mp4
 FACE_MODE=recognition
 TRACKER_BACKEND=deepsort
+MODEL_PATH=yolov8n.pt
 CONFIDENCE=0.5
 PORT=8000
 ```

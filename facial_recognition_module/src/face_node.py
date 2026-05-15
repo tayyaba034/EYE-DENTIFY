@@ -22,10 +22,7 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-try:
-    from insightface.app.face_analysis import FaceAnalysis
-except ImportError:
-    from insightface.app import FaceAnalysis
+from insightface.app import FaceAnalysis
 from person_detection_module.schemas import FrameDetectionOutput
 from multi_object_tracking_module.schemas import FrameTrackingOutput, TrackedPerson
 
