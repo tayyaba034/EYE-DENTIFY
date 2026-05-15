@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     RUNPOD_SOURCE=/workspace/input/sample.mp4 \
     FACE_MODE=recognition \
     TRACKER_BACKEND=deepsort \
+    MODEL_PATH=yolov8n.pt \
     PORT=8000
 
 WORKDIR /app
@@ -16,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     python3-pip \
     python3-venv \
+    build-essential \
     git \
     ffmpeg \
     libglib2.0-0 \

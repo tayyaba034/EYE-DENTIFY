@@ -56,9 +56,14 @@ class ClothingFeatureExtractor:
             "blue": (255, 0, 0),
             "yellow": (0, 255, 255),
             "orange": (0, 165, 255),
+            "purple": (128, 0, 128),
+            "pink": (203, 192, 255),
             "white": (255, 255, 255),
             "black": (0, 0, 0),
             "grey": (128, 128, 128),
+            "cyan": (255, 255, 0),
+            "maroon": (0, 0, 128),
+            "navy": (128, 0, 0),
         }
         self.colors_lab = {
             name: cv2.cvtColor(np.uint8([[bgr]]), cv2.COLOR_BGR2LAB)[0][0]
