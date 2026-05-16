@@ -25,6 +25,7 @@
 !/output_delivery_module/
 !/person_detection_module/
 !/esp32_ingestion_module/
+!/esp32cam_eyedentify/
 
 # Keep the gitignore file itself tracked
 !.gitignore
