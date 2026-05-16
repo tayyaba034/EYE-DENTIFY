@@ -28,10 +28,12 @@
 #define WIFI_SSID           "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD       "YOUR_WIFI_PASSWORD"
 
-// Your PC/server running: python surveillance_live_service.py --esp32-mode
-// Use your computer's local IP address (run `ipconfig` on Windows to find it)
-#define SERVER_HOST         "192.168.1.100"    // ← change this
-#define SERVER_PORT         8000
+// Cloud Server Setup:
+// 1. Deploy to Google Cloud OR Google Colab
+// 2. If using GCP: use the External IP and Port 8000
+// 3. If using Colab: use the ngrok URL (e.g. xxxx.ngrok-free.app) and Port 80
+#define SERVER_HOST         "YOUR_CLOUD_OR_NGROK_URL"    // ← change this
+#define SERVER_PORT         80                            // 8000 for GCP, 80 for ngrok
 #define UPLOAD_PATH         "/api/esp32/frame"
 #define CAMERA_ID           "esp32-cam-01"
 
@@ -256,6 +258,7 @@ bool upload_jpeg(const uint8_t* buf, size_t len) {
     headers += "Host: ";  headers += SERVER_HOST;   headers += "\r\n";
     headers += "Content-Type: application/octet-stream\r\n";
     headers += "X-Camera-ID: ";  headers += CAMERA_ID;  headers += "\r\n";
+    headers += "ngrok-skip-browser-warning: 1\r\n"; // Required for Colab/ngrok
     headers += "Content-Length: ";
     headers += String(len);
     headers += "\r\n";

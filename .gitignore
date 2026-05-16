@@ -13,6 +13,9 @@
 !/run_surveillance_pipeline.py
 !/surveillance_backend_pipeline.py
 !/surveillance_live_service.py
+!/GCP_DEPLOYMENT.md
+!/COLAB_DEPLOYMENT.md
+!/Dockerfile.cloud
 !/scripts/
 !/surveillance-dashboard-module/
 !/alert_decision_module/
