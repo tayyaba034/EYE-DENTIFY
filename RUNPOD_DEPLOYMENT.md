@@ -40,7 +40,34 @@ CONFIDENCE=0.5
 PORT=8000
 ```
 
-For an RTSP camera, use:
+### ngrok Tunnel Configuration (Optional but Recommended for ESP32)
+
+To enable external ESP32 devices to POST frames to your RunPod, add these environment variables:
+
+```text
+NGROK_AUTHTOKEN=<your-ngrok-auth-token>
+NGROK_DOMAIN=<your-ngrok-free-domain>
+```
+
+**How to set up ngrok:**
+
+1. Create a free account at [ngrok.com](https://ngrok.com)
+2. Get your **Auth Token** from the dashboard
+3. Reserve a free domain name (e.g., `paprika-impure-salvation.ngrok-free.dev`)
+4. Set `NGROK_AUTHTOKEN` and `NGROK_DOMAIN` in RunPod pod environment
+
+When the Pod starts, `scripts/runpod_start.sh` will:
+- Install ngrok on first run
+- Authenticate with your token
+- Open an HTTP tunnel to your dashboard
+- Print the public ESP32 ingestion endpoint:
+
+```
+ESP32 should POST frames to:
+  https://<NGROK_DOMAIN>/api/esp32/frame
+```
+
+For RTSP camera, use:
 
 ```text
 RUNPOD_SOURCE=rtsp://username:password@camera-ip:554/stream1
