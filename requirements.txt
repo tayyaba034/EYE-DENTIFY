@@ -1,0 +1,77 @@
+# =============================================================================
+# FYP Surveillance Intelligence Pipeline - Complete Requirements
+# =============================================================================
+# This file contains all production and development dependencies for the
+# complete surveillance pipeline including detection, tracking, feature
+# extraction, fusion, validation, alerting, and web dashboard.
+# 
+# Core Infrastructure
+# ─────────────────────────────────────────────────────────────────────────
+
+# Web Framework
+flask==3.0.3
+
+# Environment Configuration
+python-dotenv==1.0.1
+
+# Database & Cloud Integration
+psycopg[binary]==3.1.19
+
+# =============================================================================
+# Detection & Tracking Stage (Stages 1-2)
+# ─────────────────────────────────────────────────────────────────────────
+
+# YOLOv8 - Person Detection & Pose Estimation
+ultralytics==8.2.18
+
+# DeepSORT Tracking Backend
+deep-sort-realtime==1.3.2
+
+# =============================================================================
+# Feature Extraction & Fusion Stages (Stages 3-4)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Facial Recognition & Analysis
+insightface==0.7.3
+
+# Computer Vision & Image Processing
+opencv-python==4.9.0.80
+Pillow==10.1.0
+
+# =============================================================================
+# ML/AI Core Dependencies
+# ─────────────────────────────────────────────────────────────────────────
+
+# Deep Learning Framework
+torch==2.2.2
+
+# ONNX Runtime - Model Inference
+onnxruntime==1.17.3
+
+# Numerical Computing
+numpy==1.26.4
+
+# =============================================================================
+# Optional: Enhanced Capabilities
+# ─────────────────────────────────────────────────────────────────────────
+
+# MediaPipe - Advanced Pose/Hand Detection (optional for height estimation)
+# Uncomment if using enhanced pose landmarks for height estimation
+# mediapipe>=0.8.11
+
+# =============================================================================
+# Testing & Development
+# ─────────────────────────────────────────────────────────────────────────
+
+# Testing Framework
+pytest>=7.0.0
+
+# =============================================================================
+# Notes
+# ─────────────────────────────────────────────────────────────────────────
+# 1. torch and onnxruntime are intentionally pinned here for CPU usage.
+#    For GPU deployment, see Dockerfile.gpu for CUDA variants.
+# 2. MediaPipe is optional - only needed for enhanced height estimation.
+# 3. For deployment with specific GPU variants, override in docker builds.
+# 4. All versions are tested and stable as of deployment date (May 2026).
+# =============================================================================
