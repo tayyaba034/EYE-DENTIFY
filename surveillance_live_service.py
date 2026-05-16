@@ -367,7 +367,7 @@ def parse_args():
 
     # ── Original args (UNCHANGED) ─────────────────────────────────────────
     parser.add_argument("--source", default="0", help="Webcam index or video path (ignored in --esp32-mode)")
-    parser.add_argument("--backend", default="deepsort", choices=["deepsort", "bytetrack"])
+    parser.add_argument("--backend", default="bytetrack", choices=["bytetrack"])
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(

@@ -21,11 +21,8 @@ psycopg[binary]==3.1.19
 # Detection & Tracking Stage (Stages 1-2)
 # ─────────────────────────────────────────────────────────────────────────
 
-# YOLOv8 - Person Detection & Pose Estimation
+# YOLOv8 - Person Detection & Pose Estimation (includes ByteTrack)
 ultralytics==8.2.18
-
-# DeepSORT Tracking Backend
-deep-sort-realtime==1.3.2
 
 # =============================================================================
 # Feature Extraction & Fusion Stages (Stages 3-4)

@@ -50,7 +50,7 @@ fi
 # =============================================================================
 SOURCE="${RUNPOD_SOURCE:-/workspace/input/sample.mp4}"
 FACE_MODE="${FACE_MODE:-recognition}"
-TRACKER_BACKEND="${TRACKER_BACKEND:-deepsort}"
+TRACKER_BACKEND="${TRACKER_BACKEND:-bytetrack}"
 CONFIDENCE="${CONFIDENCE:-0.5}"
 MODEL_PATH="${MODEL_PATH:-yolov8n.pt}"
 EDGE_FACE_API="${EDGE_FACE_API:-}"
