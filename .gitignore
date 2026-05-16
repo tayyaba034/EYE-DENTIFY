@@ -16,6 +16,9 @@
 !/GCP_DEPLOYMENT.md
 !/COLAB_DEPLOYMENT.md
 !/Dockerfile.cloud
+!/DETECTION_SCOPE_ANALYSIS.md
+!/PIPELINE_DETECTION_EXPLANATION.md
+!/debug_pose_landmarks.py
 !/scripts/
 !/surveillance-dashboard-module/
 !/alert_decision_module/
