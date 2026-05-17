@@ -187,13 +187,18 @@ class HeightEstimator:
 
         selected_landmarks = []
         visible_count = 0
+        yolo_to_mp = {
+            0: 0, 1: 2, 2: 5, 3: 7, 4: 8, 5: 11, 6: 12, 7: 13, 8: 14,
+            9: 15, 10: 16, 11: 23, 12: 24, 13: 25, 14: 26, 15: 27, 16: 28
+        }
         for idx, point in enumerate(person_kpts):
             visibility = float(person_confs[idx]) if idx < len(person_confs) else 0.0
             if visibility > 0.25:
                 visible_count += 1
+            mp_idx = yolo_to_mp.get(idx, idx)
             selected_landmarks.append(
                 {
-                    "id": int(idx),
+                    "id": int(mp_idx),
                     "x": int(x1 + point[0]),
                     "y": int(y1 + point[1]),
                     "visibility": round(visibility, 4),
@@ -231,61 +236,21 @@ class HeightEstimator:
         y_values = []
         visible_count = 0
 
-        # Map 33 MediaPipe landmarks to 17 standard COCO keypoints:
-        # COCO 0 (nose) -> MP 0
-        # COCO 1 (L-eye) -> MP 2
-        # COCO 2 (R-eye) -> MP 5
-        # COCO 3 (L-ear) -> MP 7
-        # COCO 4 (R-ear) -> MP 8
-        # COCO 5 (L-shoulder) -> MP 11
-        # COCO 6 (R-shoulder) -> MP 12
-        # COCO 7 (L-elbow) -> MP 13
-        # COCO 8 (R-elbow) -> MP 14
-        # COCO 9 (L-wrist) -> MP 15
-        # COCO 10 (R-wrist) -> MP 16
-        # COCO 11 (L-hip) -> MP 23
-        # COCO 12 (R-hip) -> MP 24
-        # COCO 13 (L-knee) -> MP 25
-        # COCO 14 (R-knee) -> MP 26
-        # COCO 15 (L-ankle) -> MP 27
-        # COCO 16 (R-ankle) -> MP 28
-        mp_to_coco = {
-            0: 0,
-            1: 2,
-            2: 5,
-            3: 7,
-            4: 8,
-            5: 11,
-            6: 12,
-            7: 13,
-            8: 14,
-            9: 15,
-            10: 16,
-            11: 23,
-            12: 24,
-            13: 25,
-            14: 26,
-            15: 27,
-            16: 28
-        }
-
-        for coco_idx, mp_idx in mp_to_coco.items():
-            if mp_idx < len(landmarks):
-                landmark = landmarks[mp_idx]
-                visibility = float(getattr(landmark, "visibility", 0.0))
-                px = int(x1 + landmark.x * crop.shape[1])
-                py = int(y1 + landmark.y * crop.shape[0])
-                selected_landmarks.append(
-                    {
-                        "id": int(coco_idx),
-                        "x": px,
-                        "y": py,
-                        "visibility": round(visibility, 4),
-                    }
-                )
-                if visibility >= 0.4:
-                    visible_count += 1
-                    y_values.append(py)
+        for idx, landmark in enumerate(landmarks):
+            visibility = float(getattr(landmark, "visibility", 0.0))
+            px = int(x1 + landmark.x * crop.shape[1])
+            py = int(y1 + landmark.y * crop.shape[0])
+            selected_landmarks.append(
+                {
+                    "id": int(idx),
+                    "x": px,
+                    "y": py,
+                    "visibility": round(visibility, 4),
+                }
+            )
+            if visibility >= 0.4:
+                visible_count += 1
+                y_values.append(py)
 
         if len(y_values) < 2:
             return None, [], 0.0

@@ -91,18 +91,26 @@ def _draw_overlay(frame, result):
     alerts_by_track = {item["track_id"]: item for item in result.alerts}
 
     pose_connections = [
-        (5, 6),   # shoulders
-        (5, 11),  # L-shoulder to L-hip
-        (6, 12),  # R-shoulder to R-hip
-        (11, 12), # hips
-        (5, 7),   # L-shoulder to L-elbow
-        (7, 9),   # L-elbow to L-wrist
-        (6, 8),   # R-shoulder to R-elbow
-        (8, 10),  # R-elbow to R-wrist
-        (11, 13), # L-hip to L-knee
-        (13, 15), # L-knee to L-ankle
-        (12, 14), # R-hip to R-knee
-        (14, 16), # R-knee to R-ankle
+        (11, 12), # shoulders
+        (11, 23), # L-shoulder to L-hip
+        (12, 24), # R-shoulder to R-hip
+        (23, 24), # hips
+        (23, 25), # L-hip to L-knee
+        (24, 26), # R-hip to R-knee
+        (25, 27), # L-knee to L-ankle
+        (26, 28), # R-knee to R-ankle
+        (11, 13), # L-shoulder to L-elbow
+        (13, 15), # L-elbow to L-wrist
+        (12, 14), # R-shoulder to R-elbow
+        (14, 16), # R-elbow to R-wrist
+        # Left Hand
+        (15, 17), (15, 21), (17, 19), (19, 21),
+        # Right Hand
+        (16, 18), (16, 22), (18, 20), (20, 22),
+        # Left Foot
+        (27, 29), (27, 31), (29, 31),
+        # Right Foot
+        (28, 30), (28, 32), (30, 32),
     ]
 
     for det in result.detections["detections"]:
