@@ -272,89 +272,83 @@ class HeightEstimator:
         if current_scale is not None:
             self.pixels_per_cm = current_scale
 
-        # Run MediaPipe Pose ONCE on the entire frame for beautiful, complete, undistorted skeletons!
-        all_poses = []
-        if self._landmarker is not None:
-            try:
-                import mediapipe as mp
-                timestamp_ms = int(cv2.getTickCount() / cv2.getTickFrequency() * 1000)
-                mp_image = mp.Image(
-                    image_format=mp.ImageFormat.SRGB,
-                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
-                )
-                pose_result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
-                if pose_result and pose_result.pose_landmarks:
-                    all_poses = pose_result.pose_landmarks
-            except Exception:
-                pass
-
         for track in tracks:
             if getattr(track, "state", "confirmed") == "lost":
                 continue
 
             x, y, w, h = [int(v) for v in track.bbox]
-            x1, y1 = max(0, x), max(0, y)
-            x2, y2 = min(frame_width, x + w), min(frame_height, y + h)
+            
+            # --- PADDED & ASPECT-RATIO PRESERVING CROP ---
+            # MediaPipe Pose expects standard human aspect ratios. Squeezing it inside tight
+            # person boxes warps the landmarks. We expand the crop box symmetrically by 20%
+            # to capture the full body, head, and feet naturally.
+            pad_w = int(w * 0.20)
+            pad_h = int(h * 0.20)
+            cx1 = max(0, x - pad_w)
+            cy1 = max(0, y - pad_h)
+            cx2 = min(frame_width, x + w + pad_w)
+            cy2 = min(frame_height, y + h + pad_h)
+
+            crop_w = cx2 - cx1
+            crop_h = cy2 - cy1
 
             pixel_height = None
             landmarks = []
             pose_conf = 0.0
 
-            # Match track with the best detected pose from the entire frame
-            best_pose_landmarks = []
-            best_pose_conf = 0.0
-            best_pixel_height = None
-            max_in_bbox_count = -1
+            # Run MediaPipe Pose on each tracked person's crop for multi-person support!
+            if crop_w >= 40 and crop_h >= 60 and self._landmarker is not None:
+                person_crop = frame[cy1:cy2, cx1:cx2]
+                if person_crop.size > 0:
+                    try:
+                        import mediapipe as mp
+                        timestamp_ms = int(cv2.getTickCount() / cv2.getTickFrequency() * 1000)
+                        mp_image = mp.Image(
+                            image_format=mp.ImageFormat.SRGB,
+                            data=cv2.cvtColor(person_crop, cv2.COLOR_BGR2RGB),
+                        )
+                        pose_result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
+                        
+                        if pose_result and pose_result.pose_landmarks and len(pose_result.pose_landmarks) > 0:
+                            # Use the best pose (single cropped person)
+                            pose = pose_result.pose_landmarks[0]
+                            
+                            y_values = []
+                            visible_count = 0
+                            
+                            for idx, lm in enumerate(pose):
+                                # Map back to full-frame coordinates perfectly!
+                                px = int(cx1 + lm.x * crop_w)
+                                py = int(cy1 + lm.y * crop_h)
+                                visibility = float(getattr(lm, "visibility", 0.0))
+                                
+                                landmarks.append({
+                                    "id": int(idx),
+                                    "x": px,
+                                    "y": py,
+                                    "visibility": round(visibility, 4),
+                                })
+                                
+                                # Gather vertical span of visible body points (shoulders to feet)
+                                if visibility >= 0.4:
+                                    visible_count += 1
+                                    y_values.append(py)
+                                    
+                            if len(y_values) >= 2:
+                                pixel_height = float(max(y_values) - min(y_values))
+                                pose_conf = min(0.85, max(0.2, visible_count / max(1, len(pose))))
+                    except Exception:
+                        pass
 
-            for pose in all_poses:
-                pose_landmarks = []
-                in_bbox_count = 0
-                y_values = []
-                visible_count = 0
-
-                for idx, lm in enumerate(pose):
-                    px = int(lm.x * frame_width)
-                    py = int(lm.y * frame_height)
-                    visibility = float(getattr(lm, "visibility", 0.0))
-
-                    # Expanded bounding box overlap check (15% padding)
-                    pad_w = int(w * 0.15)
-                    pad_h = int(h * 0.15)
-                    if (x1 - pad_w) <= px <= (x2 + pad_w) and (y1 - pad_h) <= py <= (y2 + pad_h):
-                        in_bbox_count += 1
-
-                    pose_landmarks.append({
-                        "id": int(idx),
-                        "x": px,
-                        "y": py,
-                        "visibility": round(visibility, 4),
-                    })
-
-                    # Calculate height details for crop region
-                    if x1 <= px <= x2 and y1 <= py <= y2 and visibility >= 0.4:
-                        visible_count += 1
-                        y_values.append(py)
-
-                if in_bbox_count > max_in_bbox_count and in_bbox_count >= 3:
-                    max_in_bbox_count = in_bbox_count
-                    best_pose_landmarks = pose_landmarks
-                    
-                    if len(y_values) >= 2:
-                        best_pixel_height = float(max(y_values) - min(y_values))
-                        best_pose_conf = min(0.85, max(0.2, visible_count / max(1, len(pose))))
-
-            if best_pixel_height is not None:
-                pixel_height = best_pixel_height
-                landmarks = best_pose_landmarks
-                pose_conf = best_pose_conf
-
-            # If MediaPipe Pose on full-frame didn't find a matching pose, fall back to YOLOv8-pose crop!
+            # Fall back to YOLOv8-pose crop if MediaPipe failed
             if pixel_height is None:
+                x1, y1 = max(0, x), max(0, y)
+                x2, y2 = min(frame_width, x + w), min(frame_height, y + h)
                 crop = frame[y1:y2, x1:x2]
                 if crop.size > 0 and x2 - x1 >= 40 and y2 - y1 >= 80:
                     pixel_height, landmarks, pose_conf = self._pose_height_from_crop(crop, x1, y1)
 
-            # If still None, fall back to bounding box ratio!
+            # Fall back to bounding box height ratio
             if pixel_height is None:
                 results.append(self._fallback_height(track, frame_height))
                 continue
