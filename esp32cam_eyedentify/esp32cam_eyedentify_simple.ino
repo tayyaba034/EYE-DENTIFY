@@ -22,16 +22,22 @@
 
 #include "esp_camera.h"
 #include "WiFi.h"
-#include "WiFiClient.h"
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 #define WIFI_SSID           "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD       "YOUR_WIFI_PASSWORD"
 
-// Your PC/server running: python surveillance_live_service.py --esp32-mode
-// Use your computer's local IP address (run `ipconfig` on Windows to find it)
-#define SERVER_HOST         "192.168.1.100"    // ← change this
-#define SERVER_PORT         8000
+// SERVER CONFIGURATION:
+// For RunPod:
+//   SERVER_HOST: "n63ec2k5oj95bt-8000.proxy.runpod.net" (without http:// or https://)
+//   SERVER_PORT: 443 (RunPod HTTPS proxy always runs on port 443)
+// For Local PC:
+//   SERVER_HOST: "192.168.1.X" (your PC's local IP)
+//   SERVER_PORT: 8000
+#define SERVER_HOST         "n63ec2k5oj95bt-8000.proxy.runpod.net"
+#define SERVER_PORT         443
 #define UPLOAD_PATH         "/api/esp32/frame"
 #define CAMERA_ID           "esp32-cam-01"
 
@@ -235,80 +241,68 @@ bool wifi_ensure() {
     return wifi_connect();
 }
 
-// ─── HTTP upload using raw WiFiClient ────────────────────────────────────────
-// We use WiFiClient directly instead of esp_http_client so this compiles on
-// both core 1.0.6 and 2.x without any extra library.
-//
-// The EYE-DENTIFY backend accepts raw application/octet-stream in the body,
-// so we just write a minimal HTTP/1.1 POST — no multipart overhead.
+// ─── HTTP upload using HTTPClient & WiFiClientSecure ──────────────────────────
+// Handles secure HTTPS connections (port 443) and redirects (301, 307, 308)
+// which are required for cloud proxies like RunPod, Google Colab, and ngrok.
 bool upload_jpeg(const uint8_t* buf, size_t len) {
-    WiFiClient client;
-    client.setTimeout(HTTP_TIMEOUT_MS / 1000);   // setTimeout takes seconds
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure(); // Skip certificate verification for simplicity
 
-    if (!client.connect(SERVER_HOST, SERVER_PORT)) {
-        Serial.printf("[HTTP] Cannot connect to %s:%d\n", SERVER_HOST, SERVER_PORT);
+    HTTPClient http;
+    
+    // Construct the secure URL
+    String url = "https://";
+    url += SERVER_HOST;
+    if (SERVER_PORT != 443 && SERVER_PORT != 80) {
+        url += ":";
+        url += String(SERVER_PORT);
+    }
+    url += UPLOAD_PATH;
+
+    Serial.printf("[HTTP] Connecting to: %s\n", url.c_str());
+
+    if (!http.begin(secureClient, url)) {
+        Serial.println("[HTTP] Connection failed at begin.");
         return false;
     }
 
-    // Build HTTP request headers
-    String headers = "";
-    headers += "POST ";   headers += UPLOAD_PATH;   headers += " HTTP/1.1\r\n";
-    headers += "Host: ";  headers += SERVER_HOST;   headers += "\r\n";
-    headers += "Content-Type: application/octet-stream\r\n";
-    headers += "X-Camera-ID: ";  headers += CAMERA_ID;  headers += "\r\n";
-    headers += "Content-Length: ";
-    headers += String(len);
-    headers += "\r\n";
-    headers += "Connection: close\r\n";
-    headers += "\r\n";
+    http.setTimeout(HTTP_TIMEOUT_MS);
+    http.addHeader("Content-Type", "application/octet-stream");
+    http.addHeader("X-Camera-ID", CAMERA_ID);
+    http.addHeader("ngrok-skip-browser-warning", "true");
+    http.addHeader("Bypass-Tunnel-Reminder", "true");
 
-    // Send headers
-    client.print(headers);
+    int httpResponseCode = http.POST((uint8_t*)buf, len);
+    bool success = false;
 
-    // Stream JPEG body in 1 KB chunks to avoid large heap allocation
-    const size_t CHUNK = 1024;
-    size_t offset = 0;
-    while (offset < len) {
-        size_t to_send = min(CHUNK, len - offset);
-        size_t sent    = client.write(buf + offset, to_send);
-        if (sent == 0) {
-            Serial.println("[HTTP] Write error mid-stream.");
-            client.stop();
-            return false;
-        }
-        offset += sent;
-    }
-
-    // Read response (wait up to HTTP_TIMEOUT_MS)
-    uint32_t t0  = millis();
-    String   line = "";
-    int      status_code = 0;
-    bool     got_status  = false;
-
-    while (client.connected() || client.available()) {
-        if (millis() - t0 > (uint32_t)HTTP_TIMEOUT_MS) {
-            Serial.println("[HTTP] Response timeout.");
-            break;
-        }
-        if (!client.available()) { delay(10); continue; }
-
-        char c = client.read();
-        if (c == '\n') {
-            if (!got_status && line.startsWith("HTTP/")) {
-                // e.g. "HTTP/1.1 200 OK"
-                status_code = line.substring(9, 12).toInt();
-                got_status  = true;
-                Serial.printf("[HTTP] Status: %d\n", status_code);
+    if (httpResponseCode > 0) {
+        Serial.printf("[HTTP] Status: %d\n", httpResponseCode);
+        if (httpResponseCode >= 200 && httpResponseCode < 300) {
+            success = true;
+        } else if (httpResponseCode == 301 || httpResponseCode == 302 || httpResponseCode == 307 || httpResponseCode == 308) {
+            String newUrl = http.getLocation();
+            Serial.printf("[HTTP] Redirecting to: %s\n", newUrl.c_str());
+            http.end();
+            
+            // Try again with the redirect URL
+            if (http.begin(secureClient, newUrl)) {
+                http.addHeader("Content-Type", "application/octet-stream");
+                http.addHeader("X-Camera-ID", CAMERA_ID);
+                http.addHeader("ngrok-skip-browser-warning", "true");
+                http.addHeader("Bypass-Tunnel-Reminder", "true");
+                httpResponseCode = http.POST((uint8_t*)buf, len);
+                Serial.printf("[HTTP] Redirect Status: %d\n", httpResponseCode);
+                if (httpResponseCode >= 200 && httpResponseCode < 300) {
+                    success = true;
+                }
             }
-            if (line.length() <= 1) break;  // blank line = end of headers
-            line = "";
-        } else if (c != '\r') {
-            line += c;
         }
+    } else {
+        Serial.printf("[HTTP] Error: %s\n", http.errorToString(httpResponseCode).c_str());
     }
 
-    client.stop();
-    return (status_code >= 200 && status_code < 300);
+    http.end();
+    return success;
 }
 
 // ─── LED helper ───────────────────────────────────────────────────────────────
