@@ -49,7 +49,7 @@ fi
 # Configure environment variables
 # =============================================================================
 SOURCE="${RUNPOD_SOURCE:-/workspace/input/sample.mp4}"
-FACE_MODE="${FACE_MODE:-recognition}"
+FACE_MODE="${FACE_MODE:-none}"
 TRACKER_BACKEND="${TRACKER_BACKEND:-deepsort}"
 CONFIDENCE="${CONFIDENCE:-0.5}"
 MODEL_PATH="${MODEL_PATH:-yolov8n.pt}"

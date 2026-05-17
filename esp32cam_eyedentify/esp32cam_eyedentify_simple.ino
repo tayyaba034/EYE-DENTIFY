@@ -42,9 +42,9 @@
 #define CAMERA_ID           "esp32-cam-01"
 
 // How often to capture and send (milliseconds)
-// 3000 = one frame every 3 seconds (good starting point)
-// 1000 = one frame per second (if your network can handle it)
-#define CAPTURE_INTERVAL_MS  3000
+// 0 = continuous real-time live streaming (captures & sends as fast as possible)
+// 100 = 10 frames per second (good for slower networks)
+#define CAPTURE_INTERVAL_MS  0
 
 // JPEG quality: 10 = best quality / larger file
 //               63 = worst quality / smallest file

@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
         "--face-mode",
-        default="recognition",
+        default="none",
         choices=["recognition", "edge", "none"],
         help="Use full face recognition, edge-only face detection, or disable face signal",
     )
