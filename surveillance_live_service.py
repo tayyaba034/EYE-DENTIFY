@@ -39,6 +39,8 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
+import queue
+import numpy as np
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -95,6 +97,31 @@ class LivePipelineService:
         self.thread: Optional[threading.Thread]  = None
         self.output_path                = ARTIFACTS_DIR / "latest_pipeline_output.json"
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._esp32_mode = str(source).lower() == "esp32"
+        self._frame_queue: queue.Queue = queue.Queue(maxsize=2)
+
+    def push_esp32_frame(self, jpeg_bytes: bytes) -> bool:
+        arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return False
+        if self._frame_queue.full():
+            try:
+                self._frame_queue.get_nowait()
+            except queue.Empty:
+                pass
+        self._frame_queue.put_nowait(frame)
+        return True
+
+    def _next_frame(self, cap):
+        if self._esp32_mode:
+            try:
+                frame = self._frame_queue.get(timeout=5.0)
+                return True, frame
+            except queue.Empty:
+                return False, None
+        else:
+            return cap.read()
 
     def start(self) -> None:
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
@@ -109,48 +136,48 @@ class LivePipelineService:
         face_node = build_face_node(self.face_mode, self.edge_face_api)
         pipeline  = SurveillanceBackendPipeline(face_node=face_node)
 
-        # ── Source selection ──────────────────────────────────────────────
-        # ORIGINAL LINE (kept as fallback when frame_store is None):
-        #   cap = cv2.VideoCapture(self.source)
-        #
-        # NEW: prefer ESP32FrameCapture when a FrameStore is injected
-        if self.frame_store is not None:
-            cap = ESP32FrameCapture(
-                self.frame_store,
-                blocking=True,
-                timeout_s=8.0,
-            )
+        if self._esp32_mode:
+            cap = None
             source_label = "ESP32-CAM (HTTP upload)"
-        else:
-            # Fallback: original webcam / video-file path unchanged
-            cap = cv2.VideoCapture(self.source)
-            source_label = str(self.source)
-
-        if not cap.isOpened():
             with self.lock:
                 self.latest_state = {
-                    "status": "error",
-                    "message": f"Cannot open source: {source_label}",
+                    "status": "waiting_for_esp32",
+                    "message": "Waiting for first frame from ESP32-CAM via POST /ingest",
                     "updated_at": time.time(),
                 }
-            return
+        else:
+            cap = cv2.VideoCapture(self.source)
+            source_label = str(self.source)
+            if not cap.isOpened():
+                with self.lock:
+                    self.latest_state = {
+                        "status": "error",
+                        "message": f"Cannot open source: {self.source}",
+                        "updated_at": time.time(),
+                    }
+                return
 
         frame_id = 0
         try:
             while not self.stop_event.is_set():
-                ret, frame = cap.read()        # ← identical call; works for both caps
-                if not ret:
-                    with self.lock:
-                        self.latest_state = {
-                            "status": "error",
-                            "message": "Failed to read frame from source",
-                            "updated_at": time.time(),
-                        }
-                    # In ESP32 mode: retry instead of hard-exit (camera may resume)
-                    if self.frame_store is not None:
-                        time.sleep(0.5)
+                ret, frame = self._next_frame(cap)
+                if not ret or frame is None:
+                    if self._esp32_mode:
+                        with self.lock:
+                            self.latest_state = {
+                                "status": "waiting_for_esp32",
+                                "message": "No frame received from ESP32 in last 5 s",
+                                "updated_at": time.time(),
+                            }
                         continue
-                    break
+                    else:
+                        with self.lock:
+                            self.latest_state = {
+                                "status": "error",
+                                "message": "Failed to read frame from source",
+                                "updated_at": time.time(),
+                            }
+                        break
                 if self.frame_store is not None:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
 
@@ -181,7 +208,8 @@ class LivePipelineService:
                 frame_id += 1
 
         finally:
-            cap.release()
+            if cap is not None:
+                cap.release()
             try:
                 pipeline.height_node.close()
             except Exception:
@@ -337,6 +365,16 @@ def create_app(
                 time.sleep(0.08)
         return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
+    @app.route("/ingest", methods=["POST"])
+    def api_ingest():
+        jpeg_bytes = request.get_data()
+        if not jpeg_bytes:
+            return jsonify({"error": "empty body"}), 400
+        ok = service.push_esp32_frame(jpeg_bytes)
+        if not ok:
+            return jsonify({"error": "invalid jpeg"}), 422
+        return jsonify({"ok": True, "queued": True}), 200
+
     # ── NEW: ESP32-CAM ingestion routes ───────────────────────────────────
 
     if frame_store is not None:
@@ -409,7 +447,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Connected surveillance dashboard service")
 
     # ── Original args (UNCHANGED) ─────────────────────────────────────────
-    parser.add_argument("--source", default="0", help="Webcam index or video path (ignored in --esp32-mode)")
+    parser.add_argument(
+        "--source",
+        default="0",
+        help="Video source: webcam index (0,1…), video file path, or 'esp32' to receive frames via POST /ingest",
+    )
     parser.add_argument("--backend", default="deepsort", choices=["deepsort", "bytetrack"])
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
