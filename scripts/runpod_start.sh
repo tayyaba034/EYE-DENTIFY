@@ -54,6 +54,7 @@ TRACKER_BACKEND="${TRACKER_BACKEND:-deepsort}"
 CONFIDENCE="${CONFIDENCE:-0.5}"
 MODEL_PATH="${MODEL_PATH:-yolov8n.pt}"
 EDGE_FACE_API="${EDGE_FACE_API:-}"
+ESP32_MODE="${ESP32_MODE:-true}"
 
 echo "Starting surveillance dashboard"
 echo "  source: ${SOURCE}"
@@ -61,6 +62,7 @@ echo "  face mode: ${FACE_MODE}"
 echo "  tracker: ${TRACKER_BACKEND}"
 echo "  model: ${MODEL_PATH}"
 echo "  port: ${PORT}"
+echo "  esp32 mode: ${ESP32_MODE}"
 
 # =============================================================================
 # Start the pipeline service
@@ -75,6 +77,10 @@ ARGS=(
   "--host" "0.0.0.0"
   "--port" "${PORT}"
 )
+
+if [[ "${ESP32_MODE}" == "true" || "${ESP32_MODE}" == "1" ]]; then
+  ARGS+=("--esp32-mode")
+fi
 
 if [[ -n "${EDGE_FACE_API}" ]]; then
   ARGS+=("--edge-face-api" "${EDGE_FACE_API}")
