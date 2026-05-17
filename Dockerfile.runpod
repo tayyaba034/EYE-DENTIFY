@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive \
     RUNPOD_SOURCE=/workspace/input/sample.mp4 \
     FACE_MODE=recognition \
-    TRACKER_BACKEND=bytetrack \
+    TRACKER_BACKEND=deepsort \
     MODEL_PATH=yolov8n.pt \
     PORT=8000
 

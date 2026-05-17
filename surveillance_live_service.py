@@ -76,6 +76,8 @@ class LivePipelineService:
         conf: float,
         face_mode: str,
         edge_face_api: Optional[str],
+        # ── NEW parameters ────────────────────────────────────────────────
+        frame_store: Optional[FrameStore] = None,   # None → use cv2.VideoCapture
     ) -> None:
         self.source        = source
         self.backend       = backend
@@ -83,6 +85,7 @@ class LivePipelineService:
         self.conf          = conf
         self.face_mode     = face_mode
         self.edge_face_api = edge_face_api
+        self.frame_store   = frame_store             # NEW
 
         self.lock                       = threading.Lock()
         self.latest_state: dict         = {"status": "initializing"}
@@ -92,11 +95,6 @@ class LivePipelineService:
         self.thread: Optional[threading.Thread]  = None
         self.output_path                = ARTIFACTS_DIR / "latest_pipeline_output.json"
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # ── ADD THESE THREE LINES ──────────────────────────────────
-        from esp32_ingestion_module.frame_store import FrameStore
-        self.frame_store = FrameStore(max_age_s=10.0) if str(source).lower() == "esp32" else None
-        # ──────────────────────────────────────────────────────────
 
     def start(self) -> None:
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
@@ -112,11 +110,19 @@ class LivePipelineService:
         pipeline  = SurveillanceBackendPipeline(face_node=face_node)
 
         # ── Source selection ──────────────────────────────────────────────
+        # ORIGINAL LINE (kept as fallback when frame_store is None):
+        #   cap = cv2.VideoCapture(self.source)
+        #
+        # NEW: prefer ESP32FrameCapture when a FrameStore is injected
         if self.frame_store is not None:
-            from esp32_ingestion_module.esp32_capture import ESP32FrameCapture
-            cap = ESP32FrameCapture(self.frame_store, blocking=True, timeout_s=8.0)
+            cap = ESP32FrameCapture(
+                self.frame_store,
+                blocking=True,
+                timeout_s=8.0,
+            )
             source_label = "ESP32-CAM (HTTP upload)"
         else:
+            # Fallback: original webcam / video-file path unchanged
             cap = cv2.VideoCapture(self.source)
             source_label = str(self.source)
 
@@ -224,6 +230,7 @@ def create_app(
     service: LivePipelineService,
     auth_required: Optional[bool]          = None,
     allow_localhost_bypass: Optional[bool] = None,
+    frame_store: Optional[FrameStore]      = None,  # NEW
 ) -> Flask:
     app = Flask(
         __name__,
@@ -259,32 +266,7 @@ def create_app(
     def _require_auth(view):
         return require_api_auth(auth_config)(view)
 
-    # ── ESP32-CAM ingestion routes ─────────────────────────────────────────
-
-    @app.route("/api/esp32/frame", methods=["POST"])
-    def api_esp32_frame():
-        if service.frame_store is None:
-            return jsonify({"error": "pipeline not started with --source esp32"}), 400
-
-        from flask import request as flask_request
-        jpeg_bytes = flask_request.data
-        if not jpeg_bytes:
-            if "frame" in flask_request.files:
-                jpeg_bytes = flask_request.files["frame"].read()
-
-        if not jpeg_bytes:
-            return jsonify({"error": "no image data received"}), 400
-
-        ok = service.frame_store.put_jpeg(jpeg_bytes)
-        return jsonify({"ok": ok}), 200 if ok else 422
-
-    @app.route("/api/esp32/status")
-    def api_esp32_status():
-        if service.frame_store is None:
-            return jsonify({"error": "not in esp32 mode"}), 400
-        return jsonify(service.frame_store.status())
-
-    # ── Original routes (UNCHANGED) ────────────────────────────────────────
+    # ── Original routes (UNCHANGED) ───────────────────────────────────────
 
     @app.route("/live")
     def api_live():
@@ -355,6 +337,67 @@ def create_app(
                 time.sleep(0.08)
         return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
+    # ── NEW: ESP32-CAM ingestion routes ───────────────────────────────────
+
+    if frame_store is not None:
+
+        @app.route("/api/esp32/frame", methods=["POST"])
+        def esp32_upload_frame():
+            """
+            ESP32-CAM POSTs a JPEG here.
+
+            Accepts two content types:
+              1. multipart/form-data  — field name "file"  (matches the
+                 Arduino upload_image() function written in Part 1)
+              2. application/octet-stream  — raw JPEG bytes in request body
+                 (simpler, lower overhead)
+
+            Returns 200 {"status":"ok","frame_id":<int>} on success.
+            Returns 400 on bad payload.
+            """
+            camera_id = request.headers.get("X-Camera-ID", "esp32")
+            meta: dict = {}
+
+            content_type = request.content_type or ""
+
+            if "multipart/form-data" in content_type:
+                file_obj = request.files.get("file")
+                if file_obj is None:
+                    return jsonify({"status": "error", "message": "no 'file' field"}), 400
+                jpeg_bytes = file_obj.read()
+            else:
+                # Treat the entire body as raw JPEG bytes
+                jpeg_bytes = request.get_data()
+
+            if not jpeg_bytes:
+                return jsonify({"status": "error", "message": "empty payload"}), 400
+
+            ok = frame_store.put_jpeg(jpeg_bytes, camera_id=camera_id, metadata=meta)
+            if not ok:
+                return jsonify({"status": "error", "message": "invalid JPEG"}), 400
+
+            stored = frame_store.get_frame()
+            return jsonify({
+                "status":   "ok",
+                "frame_id": stored.frame_id if stored else -1,
+            }), 200
+
+        @app.route("/api/esp32/status", methods=["GET"])
+        def esp32_status():
+            """Diagnostic endpoint — shows frame store health."""
+            return jsonify(frame_store.status()), 200
+
+        @app.route("/api/esp32/latest.jpg", methods=["GET"])
+        def esp32_latest_jpg():
+            """
+            Return the raw (unprocessed) JPEG last uploaded by the ESP32.
+            Useful for debugging camera angle / exposure before the pipeline runs.
+            """
+            stored = frame_store.get_frame()
+            if stored is None:
+                return Response(status=503)
+            return Response(stored.jpeg_bytes, mimetype="image/jpeg")
+
     return app
 
 
@@ -367,7 +410,7 @@ def parse_args():
 
     # ── Original args (UNCHANGED) ─────────────────────────────────────────
     parser.add_argument("--source", default="0", help="Webcam index or video path (ignored in --esp32-mode)")
-    parser.add_argument("--backend", default="bytetrack", choices=["bytetrack"])
+    parser.add_argument("--backend", default="deepsort", choices=["deepsort", "bytetrack"])
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
@@ -426,17 +469,31 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # ── Determine source ───────────────────────────────────────────────────
-    if args.esp32_mode or str(args.source).lower() == "esp32":
-        source = "esp32"
+    # ── Build FrameStore (only in ESP32 mode) ─────────────────────────────
+    frame_store: Optional[FrameStore] = None
+    if args.esp32_mode:
+        target_size = None
+        if args.esp32_upscale_width > 0 and args.esp32_upscale_height > 0:
+            target_size = (args.esp32_upscale_width, args.esp32_upscale_height)
+
+        frame_store = FrameStore(
+            max_age_s   = args.esp32_max_age,
+            target_size = target_size,
+        )
         print(
             f"[BOOT] ESP32 mode active. "
             f"POST frames to http://{args.host}:{args.port}/api/esp32/frame"
         )
     else:
-        # Original webcam / video path
+        # Original webcam path
         source = int(args.source) if str(args.source).isdigit() else args.source
         print(f"[BOOT] Webcam mode. Source: {source}")
+
+    source = (
+        None                                          # ignored when frame_store is set
+        if frame_store
+        else (int(args.source) if str(args.source).isdigit() else args.source)
+    )
 
     service = LivePipelineService(
         source       = source,
@@ -445,6 +502,7 @@ def main():
         conf         = args.conf,
         face_mode    = args.face_mode,
         edge_face_api= args.edge_face_api or None,
+        frame_store  = frame_store,               # NEW
     )
     service.start()
 
@@ -452,6 +510,7 @@ def main():
         service,
         auth_required          = args.auth_required,
         allow_localhost_bypass = args.allow_localhost_bypass,
+        frame_store            = frame_store,     # NEW
     )
 
     app.run(host=args.host, port=args.port, threaded=True)

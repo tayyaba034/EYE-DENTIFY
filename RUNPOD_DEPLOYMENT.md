@@ -34,7 +34,7 @@ Set these environment variables in the Pod:
 ```text
 RUNPOD_SOURCE=/workspace/input/sample.mp4
 FACE_MODE=recognition
-TRACKER_BACKEND=bytetrack
+TRACKER_BACKEND=deepsort
 MODEL_PATH=yolov8n.pt
 CONFIDENCE=0.5
 PORT=8000
