@@ -98,7 +98,7 @@ class HeightEstimator:
             options = vision.PoseLandmarkerOptions(
                 base_options=base_options,
                 running_mode=vision.RunningMode.VIDEO,
-                num_poses=1,
+                num_poses=4,
                 min_pose_detection_confidence=0.45,
                 min_pose_presence_confidence=0.45,
                 min_tracking_confidence=0.45,
@@ -266,10 +266,27 @@ class HeightEstimator:
         results: List[HeightEstimate] = []
         tracks = getattr(tracking_output, "tracks", tracking_output.confirmed_tracks)
         frame_height = max(1, int(frame.shape[0]))
+        frame_width = max(1, int(frame.shape[1]))
 
         current_scale = self._calculate_scale_from_aruco(frame)
         if current_scale is not None:
             self.pixels_per_cm = current_scale
+
+        # Run MediaPipe Pose ONCE on the entire frame for beautiful, complete, undistorted skeletons!
+        all_poses = []
+        if self._landmarker is not None:
+            try:
+                import mediapipe as mp
+                timestamp_ms = int(cv2.getTickCount() / cv2.getTickFrequency() * 1000)
+                mp_image = mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                )
+                pose_result = self._landmarker.detect_for_video(mp_image, timestamp_ms)
+                if pose_result and pose_result.pose_landmarks:
+                    all_poses = pose_result.pose_landmarks
+            except Exception:
+                pass
 
         for track in tracks:
             if getattr(track, "state", "confirmed") == "lost":
@@ -277,24 +294,67 @@ class HeightEstimator:
 
             x, y, w, h = [int(v) for v in track.bbox]
             x1, y1 = max(0, x), max(0, y)
-            x2, y2 = min(frame.shape[1], x + w), min(frame.shape[0], y + h)
-            crop = frame[y1:y2, x1:x2]
+            x2, y2 = min(frame_width, x + w), min(frame_height, y + h)
 
-            if crop.size == 0 or x2 - x1 < 40 or y2 - y1 < 80:
-                results.append(
-                    HeightEstimate(
-                        track_id=track.track_id,
-                        estimated_height_m=0.0,
-                        confidence=0.0,
-                        pose_detected=False,
-                        landmarks=[],
-                    )
-                )
-                continue
+            pixel_height = None
+            landmarks = []
+            pose_conf = 0.0
 
-            pixel_height, landmarks, pose_conf = self._pose_height_from_crop(crop, x1, y1)
+            # Match track with the best detected pose from the entire frame
+            best_pose_landmarks = []
+            best_pose_conf = 0.0
+            best_pixel_height = None
+            max_in_bbox_count = -1
+
+            for pose in all_poses:
+                pose_landmarks = []
+                in_bbox_count = 0
+                y_values = []
+                visible_count = 0
+
+                for idx, lm in enumerate(pose):
+                    px = int(lm.x * frame_width)
+                    py = int(lm.y * frame_height)
+                    visibility = float(getattr(lm, "visibility", 0.0))
+
+                    # Expanded bounding box overlap check (15% padding)
+                    pad_w = int(w * 0.15)
+                    pad_h = int(h * 0.15)
+                    if (x1 - pad_w) <= px <= (x2 + pad_w) and (y1 - pad_h) <= py <= (y2 + pad_h):
+                        in_bbox_count += 1
+
+                    pose_landmarks.append({
+                        "id": int(idx),
+                        "x": px,
+                        "y": py,
+                        "visibility": round(visibility, 4),
+                    })
+
+                    # Calculate height details for crop region
+                    if x1 <= px <= x2 and y1 <= py <= y2 and visibility >= 0.4:
+                        visible_count += 1
+                        y_values.append(py)
+
+                if in_bbox_count > max_in_bbox_count and in_bbox_count >= 3:
+                    max_in_bbox_count = in_bbox_count
+                    best_pose_landmarks = pose_landmarks
+                    
+                    if len(y_values) >= 2:
+                        best_pixel_height = float(max(y_values) - min(y_values))
+                        best_pose_conf = min(0.85, max(0.2, visible_count / max(1, len(pose))))
+
+            if best_pixel_height is not None:
+                pixel_height = best_pixel_height
+                landmarks = best_pose_landmarks
+                pose_conf = best_pose_conf
+
+            # If MediaPipe Pose on full-frame didn't find a matching pose, fall back to YOLOv8-pose crop!
             if pixel_height is None:
-                pixel_height, landmarks, pose_conf = self._pose_height_from_landmarker(crop, x1, y1)
+                crop = frame[y1:y2, x1:x2]
+                if crop.size > 0 and x2 - x1 >= 40 and y2 - y1 >= 80:
+                    pixel_height, landmarks, pose_conf = self._pose_height_from_crop(crop, x1, y1)
+
+            # If still None, fall back to bounding box ratio!
             if pixel_height is None:
                 results.append(self._fallback_height(track, frame_height))
                 continue
