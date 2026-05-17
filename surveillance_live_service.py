@@ -105,6 +105,13 @@ class LivePipelineService:
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if frame is None:
             return False
+
+        h, w = frame.shape[:2]
+        if w > 640:
+            new_w = 640
+            new_h = int(h * (640.0 / w))
+            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
         if self._frame_queue.full():
             try:
                 self._frame_queue.get_nowait()
