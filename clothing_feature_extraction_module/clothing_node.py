@@ -115,21 +115,10 @@ class ClothingFeatureExtractor:
         h, w, _ = person.shape
         if h <= 0 or w <= 0:
             return None, None
-        if self.use_face_anchor:
-            gray = cv2.cvtColor(person, cv2.COLOR_BGR2GRAY)
-            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
-            if len(faces) > 0:
-                fx, fy, fw, fh = max(faces, key=lambda face: face[2] * face[3])
-                y1 = int(fy + fh)
-                y2 = min(h, y1 + int(4 * fh))
-                x1 = max(0, int(fx - fw))
-                x2 = min(w, int(fx + 2 * fw))
-            else:
-                y1, y2 = int(0.25 * h), int(0.75 * h)
-                x1, x2 = int(0.2 * w), int(0.8 * w)
-        else:
-            y1, y2 = int(0.25 * h), int(0.75 * h)
-            x1, x2 = int(0.2 * w), int(0.8 * w)
+
+        # Highly optimized aspect-ratio aware geometric torso region estimation
+        y1, y2 = int(0.20 * h), int(0.55 * h)
+        x1, x2 = int(0.15 * w), int(0.85 * w)
 
         roi = person[y1:y2, x1:x2]
         if roi.size == 0:

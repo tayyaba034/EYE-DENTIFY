@@ -33,12 +33,12 @@ logger = logging.getLogger("run_surveillance_pipeline")
 def parse_args():
     parser = argparse.ArgumentParser(description="End-to-end surveillance backend runner")
     parser.add_argument("--source", default="0", help="Webcam index or video/image path")
-    parser.add_argument("--backend", default="deepsort", choices=["deepsort", "bytetrack"])
+    parser.add_argument("--backend", default="bytetrack", choices=["deepsort", "bytetrack"])
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
         "--face-mode",
-        default="none",
+        default="recognition",
         choices=["recognition", "edge", "none"],
         help="Use full face recognition, edge-only face detection, or disable face signal",
     )
@@ -91,14 +91,18 @@ def _draw_overlay(frame, result):
     alerts_by_track = {item["track_id"]: item for item in result.alerts}
 
     pose_connections = [
-        (11, 12),
-        (11, 23),
-        (12, 24),
-        (23, 24),
-        (23, 25),
-        (24, 26),
-        (25, 27),
-        (26, 28),
+        (5, 6),   # shoulders
+        (5, 11),  # L-shoulder to L-hip
+        (6, 12),  # R-shoulder to R-hip
+        (11, 12), # hips
+        (5, 7),   # L-shoulder to L-elbow
+        (7, 9),   # L-elbow to L-wrist
+        (6, 8),   # R-shoulder to R-elbow
+        (8, 10),  # R-elbow to R-wrist
+        (11, 13), # L-hip to L-knee
+        (13, 15), # L-knee to L-ankle
+        (12, 14), # R-hip to R-knee
+        (14, 16), # R-knee to R-ankle
     ]
 
     for det in result.detections["detections"]:

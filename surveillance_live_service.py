@@ -459,12 +459,12 @@ def parse_args():
         default="0",
         help="Video source: webcam index (0,1…), video file path, or 'esp32' to receive frames via POST /ingest",
     )
-    parser.add_argument("--backend", default="deepsort", choices=["deepsort", "bytetrack"])
+    parser.add_argument("--backend", default="bytetrack", choices=["deepsort", "bytetrack"])
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
         "--face-mode",
-        default="none",
+        default="recognition",
         choices=["recognition", "edge", "none"],
         help="Use full face recognition, edge-only face detection, or disable face signal",
     )
