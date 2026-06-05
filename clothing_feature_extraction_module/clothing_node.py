@@ -39,11 +39,17 @@ class ClothingFeatureExtractor:
     prototype, but integrated into the tracked pipeline.
     """
 
-    def __init__(self, target_color: Optional[str] = None, history_len: int = 15) -> None:
+    def __init__(
+        self,
+        target_color: Optional[str] = None,
+        history_len: int = 15,
+        color_model: str = "kmeans",
+    ) -> None:
         if target_color is None:
             target_color = os.getenv("CLOTHING_TARGET_COLOR")
         self.target_color = self._normalize_color_name(target_color) if target_color else None
         self.history_len = history_len
+        self.color_model = (color_model or "kmeans").strip().lower()
         self.color_history: Dict[int, Deque[str]] = {}
 
         haar_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"

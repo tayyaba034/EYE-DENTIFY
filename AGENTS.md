@@ -521,3 +521,8 @@ If you need the shortest accurate mental model for this repo:
 - Supabase integration exists but schema assumptions may need cleanup
 - the current alert score is driven mainly by face and clothing, despite broader architectural docs
 - the current local webcam workflow is `surveillance_live_service.py --source 0 --face-mode recognition`, with an OpenCV fallback if InsightFace startup is unavailable
+
+
+
+
+Set-Location "d:/FYP MODELS/plschalja/PIPELINE"; & "d:/FYP MODELS/plschalja/.venv/Scripts/python.exe" surveillance_live_service.py --source 0 --host 127.0.0.1 --port 8000

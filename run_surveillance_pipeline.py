@@ -37,6 +37,12 @@ def parse_args():
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
+        "--color-model",
+        default="kmeans",
+        choices=["kmeans", "yolo"],
+        help="Color detection model used by the clothing stage",
+    )
+    parser.add_argument(
         "--face-mode",
         default="recognition",
         choices=["recognition", "edge", "none"],
@@ -48,6 +54,11 @@ def parse_args():
         help="ESP32 face endpoint base URL, e.g. http://192.168.1.100",
     )
     parser.add_argument("--json-out", default=str(ARTIFACTS_DIR / "latest_pipeline_output.json"))
+    parser.add_argument(
+        "--video-out",
+        default=str(ARTIFACTS_DIR / "latest_pipeline_overlay.mp4"),
+        help="Path to save overlay video output",
+    )
     parser.add_argument("--headless", action="store_true", help="Run without GUI display")
     parser.add_argument("--max-frames", type=int, default=0, help="Stop after N frames (0 = unlimited)")
     return parser.parse_args()
@@ -208,11 +219,27 @@ def main():
     detector = PersonDetector(model_path=args.model, conf_threshold=args.conf)
     tracker = MultiObjectTracker(backend=args.backend)
     face_node = build_face_node(args.face_mode, args.edge_face_api or None)
-    pipeline = SurveillanceBackendPipeline(face_node=face_node)
+    pipeline = SurveillanceBackendPipeline(face_node=face_node, color_model=args.color_model)
 
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open source: {source}")
+
+    video_out_path = Path(args.video_out)
+    video_out_path.parent.mkdir(parents=True, exist_ok=True)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if not fps or fps <= 0:
+        fps = 25.0
+    frame_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    writer = cv2.VideoWriter(
+        str(video_out_path),
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        fps,
+        (frame_w, frame_h),
+    )
+    if not writer.isOpened():
+        raise RuntimeError(f"Cannot open video writer: {video_out_path}")
 
     output_path = Path(args.json_out)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -239,8 +266,10 @@ def main():
                 len([a for a in result.alerts if a["alert"]]),
             )
 
+        vis = _draw_overlay(frame, result)
+        writer.write(vis)
+
         if not args.headless:
-            vis = _draw_overlay(frame, result)
             cv2.imshow("Surveillance Backend Pipeline", vis)
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
@@ -251,6 +280,7 @@ def main():
             break
 
     cap.release()
+    writer.release()
     if not args.headless:
         cv2.destroyAllWindows()
 

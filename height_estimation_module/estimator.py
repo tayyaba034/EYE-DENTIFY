@@ -15,6 +15,13 @@ class HeightEstimate:
     confidence: float
     pose_detected: bool = False
     landmarks: Optional[List[dict]] = None
+    # COCO pose skeleton connections
+    SKELETON = [
+        (0, 1), (0, 2), (1, 3), (2, 4),  # head/face
+        (5, 6), (5, 7), (7, 9), (6, 8), (8, 10),  # arms
+        (5, 11), (6, 12),  # torso
+        (11, 12), (11, 13), (13, 15), (12, 14), (14, 16)  # legs
+    ]
 
     def to_dict(self) -> dict:
         return {
@@ -25,6 +32,7 @@ class HeightEstimate:
                 "pose_detected": self.pose_detected,
             },
             "landmarks": self.landmarks or [],
+            "skeleton": self.SKELETON,  # Keypoint connections for visualization
         }
 
 
@@ -167,15 +175,38 @@ class HeightEstimator:
         nose = person_kpts[0]
         left_ank = person_kpts[15]
         right_ank = person_kpts[16]
+        # Fallback to shoulders if ankles not visible
+        left_shoulder = person_kpts[5]
+        right_shoulder = person_kpts[6]
 
-        if person_confs[0] <= 0.5 or (person_confs[15] <= 0.5 and person_confs[16] <= 0.5):
+        # Require head + at least one lower body point (ankle, hip, or shoulder)
+        ankles_visible = person_confs[15] > 0.25 or person_confs[16] > 0.25
+        shoulders_visible = person_confs[5] > 0.25 or person_confs[6] > 0.25
+        hips_visible = person_confs[11] > 0.25 or person_confs[12] > 0.25
+        
+        if person_confs[0] <= 0.25 or not (ankles_visible or shoulders_visible or hips_visible):
             return None, [], 0.0
 
+        # Use best available lower points for height calculation
         ankle_y_vals = []
-        if person_confs[15] > 0.5:
+        if person_confs[15] > 0.25:
             ankle_y_vals.append(left_ank[1])
-        if person_confs[16] > 0.5:
+        if person_confs[16] > 0.25:
             ankle_y_vals.append(right_ank[1])
+        
+        # If no ankles, use shoulders or hips
+        if not ankle_y_vals:
+            if person_confs[5] > 0.15:
+                ankle_y_vals.append(left_shoulder[1])
+            if person_confs[6] > 0.15:
+                ankle_y_vals.append(right_shoulder[1])
+        
+        if not ankle_y_vals:
+            if person_confs[11] > 0.15:  # left hip
+                ankle_y_vals.append(person_kpts[11][1])
+            if person_confs[12] > 0.15:  # right hip
+                ankle_y_vals.append(person_kpts[12][1])
+        
         if not ankle_y_vals:
             return None, [], 0.0
 

@@ -65,9 +65,9 @@ class SurveillanceBackendPipeline:
     Web delivery is intentionally excluded until the frontend skill is ready.
     """
 
-    def __init__(self, face_node) -> None:
+    def __init__(self, face_node, color_model: str = "kmeans") -> None:
         self.face_node = face_node
-        self.clothing_node = ClothingFeatureExtractor()
+        self.clothing_node = ClothingFeatureExtractor(color_model=color_model)
         self.height_node = HeightEstimator()
         self.fusion_engine = FusionEngine()
         self.temporal_validator = TemporalValidator()
@@ -76,7 +76,7 @@ class SurveillanceBackendPipeline:
         self.output_delivery_engine = OutputDeliveryEngine()
 
     def process(self, detection_output, tracking_output, frame) -> BackendPipelineResult:
-        face_results = self.face_node.process(tracking_output, frame)
+        face_results = self.face_node.process(tracking_output, frame) if self.face_node is not None else []
         clothing_results = [
             item.to_dict() for item in self.clothing_node.process(tracking_output, frame)
         ]

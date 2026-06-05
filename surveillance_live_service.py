@@ -78,6 +78,7 @@ class LivePipelineService:
         conf: float,
         face_mode: str,
         edge_face_api: Optional[str],
+        color_model: str = "kmeans",
         # ── NEW parameters ────────────────────────────────────────────────
         frame_store: Optional[FrameStore] = None,   # None → use cv2.VideoCapture
     ) -> None:
@@ -87,6 +88,7 @@ class LivePipelineService:
         self.conf          = conf
         self.face_mode     = face_mode
         self.edge_face_api = edge_face_api
+        self.color_model   = color_model
         self.frame_store   = frame_store             # NEW
 
         self.lock                       = threading.Lock()
@@ -141,7 +143,7 @@ class LivePipelineService:
         detector = PersonDetector(model_path=self.model_path, conf_threshold=self.conf)
         tracker  = MultiObjectTracker(backend=self.backend)
         face_node = build_face_node(self.face_mode, self.edge_face_api)
-        pipeline  = SurveillanceBackendPipeline(face_node=face_node)
+        pipeline  = SurveillanceBackendPipeline(face_node=face_node, color_model=self.color_model)
 
         if self._esp32_mode:
             cap = None
@@ -463,6 +465,12 @@ def parse_args():
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--model", default=MODEL_PATH)
     parser.add_argument(
+        "--color-model",
+        default="kmeans",
+        choices=["kmeans", "yolo"],
+        help="Color detection model used by the clothing stage",
+    )
+    parser.add_argument(
         "--face-mode",
         default="recognition",
         choices=["recognition", "edge", "none"],
@@ -551,6 +559,7 @@ def main():
         conf         = args.conf,
         face_mode    = args.face_mode,
         edge_face_api= args.edge_face_api or None,
+        color_model  = args.color_model,
         frame_store  = frame_store,               # NEW
     )
     service.start()

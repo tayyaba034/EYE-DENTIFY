@@ -48,6 +48,7 @@ const els = {
   trackTable: document.getElementById("track-table"),
   deliveryList: document.getElementById("delivery-list"),
   liveFeed: document.getElementById("live-feed"),
+  skeletonOverlay: document.getElementById("skeleton-overlay"),
   barFace: document.getElementById("bar-face"),
   barClothing: document.getElementById("bar-clothing"),
   barTemporal: document.getElementById("bar-temporal"),
@@ -232,6 +233,70 @@ function renderRemoteDeliveries(alerts) {
   `).join("");
 }
 
+function renderSkeleton(data) {
+  const canvas = els.skeletonOverlay;
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  
+  // Match canvas size to image
+  const img = els.liveFeed;
+  if (img && img.naturalWidth && img.naturalHeight) {
+    canvas.width = img.offsetWidth;
+    canvas.height = img.offsetHeight;
+  }
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Get scale factors if image dimensions differ from display
+  const scaleX = canvas.width / (img?.naturalWidth || 1);
+  const scaleY = canvas.height / (img?.naturalHeight || 1);
+  
+  // Render skeleton for each detected person
+  const heightFeatures = data?.height_features || [];
+  heightFeatures.forEach(feature => {
+    if (!feature.landmarks || !feature.skeleton) return;
+    
+    const landmarks = feature.landmarks;
+    const skeleton = feature.skeleton;
+    
+    // Draw skeleton connections
+    ctx.strokeStyle = "#FF4444";
+    ctx.lineWidth = 2;
+    skeleton.forEach(([start, end]) => {
+      const p1 = landmarks.find(l => l.id === start);
+      const p2 = landmarks.find(l => l.id === end);
+      
+      if (p1 && p2 && p1.visibility > 0.3 && p2.visibility > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x * scaleX, p1.y * scaleY);
+        ctx.lineTo(p2.x * scaleX, p2.y * scaleY);
+        ctx.stroke();
+      }
+    });
+    
+    // Draw keypoints
+    landmarks.forEach(landmark => {
+      if (landmark.visibility < 0.3) return;
+      
+      const radius = landmark.visibility > 0.7 ? 5 : 3;
+      const color = landmark.visibility > 0.7 ? "#00FF00" : "#FFFF00";
+      
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(landmark.x * scaleX, landmark.y * scaleY, radius, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw keypoint ID
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "10px monospace";
+      ctx.fillText(String(landmark.id), landmark.x * scaleX + 8, landmark.y * scaleY - 5);
+    });
+  });
+}
+
 function render(data) {
   const detections = data?.detections?.detections?.length ?? 0;
   const tracks = data?.tracks?.tracks?.length ?? 0;
@@ -267,6 +332,7 @@ function render(data) {
   renderAlerts(displayAlerts);
   renderFusion(data?.fusion || []);
   renderTracks(data);
+  renderSkeleton(data);
   renderRemoteDeliveries(remoteAlerts.length ? remoteAlerts : (data?.deliveries || []));
 }
 
